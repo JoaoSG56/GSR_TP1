@@ -1,8 +1,6 @@
 import socket
 import json
-import cryptography
 from cryptography.fernet import Fernet
-from pysnmp import hlapi
 from Packet import Packet
 
 def main():

@@ -1,5 +1,4 @@
 import socket
-import cryptography
 from cryptography.fernet import Fernet
 import json
 from Packet import Packet
@@ -13,8 +12,11 @@ def main():
         message, address = ss.recvfrom(1234)
         packet = Packet()
         hash = packet.decode(message,fernet)
-        print(hash)
-        print(packet.getHash())
+        if hash != packet.getHash():
+            print('Pacote comprometido!\nIgnorando packet ...')
+            continue
+    
+        print("Pacote recebido:")
         packet.printaPacket()
 
 
