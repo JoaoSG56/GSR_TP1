@@ -4,7 +4,6 @@ import hashlib
 class Packet:
     def __init__(self, *args):
         if len(args) > 1 and isinstance(args[0],str) and isinstance(args[1],list):
-            print("entrou primeira opção")
             self.ip_from = args[0]
             self.oids = args[1]
 
