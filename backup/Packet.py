@@ -13,14 +13,19 @@ class Packet:
             self.oids = None
 
     def pack(self,fernet):
-        header = bytearray((self.ip_from).encode('latin-1'))
+
+        ip = self.ip_from.split('.')
+        header = bytearray(("|".join(ip)).encode('latin-1'))
         divisao = "|".encode('latin-1')
 
-        encoded = b''
+        toHash = b''
+        crypt = b''
         for oid in self.oids:
-            encoded += divisao + oid.encode('latin-1')
-            
-        msg = header+encoded
+            toHash += divisao + oid.encode('latin-1')
+            crypt += divisao + fernet.encrypt(oid.encode('latin-1'))
+
+        hash = hashlib.md5(header+toHash).hexdigest()
+        msg = header+crypt+divisao+str(hash).encode('latin-1')
         return msg
 
         # ip = [int(i) for i in self.ip_from.split('.')]
@@ -66,10 +71,10 @@ class Packet:
 
     def decode(self,packetBytes,fernet):
         msg = packetBytes.decode('latin-1').split('|')
-        self.ip_from = msg[0]
+        self.ip_from = ".".join(msg[0:4])
         self.oids = []
-        for oid in msg[1:]:
-            self.oids.append(oid)
+        for oid in msg[4:-1]:
+            self.oids.append(fernet.decrypt(oid.encode('latin-1')).decode('latin-1'))
         return msg[-1]
         # header = struct.unpack("!4h", packetBytes[0:8])
         # # print(header)
