@@ -16,7 +16,7 @@ class Cleaner:
 
     def run(self,t,threshold,delThreshold):
         time.sleep(t)
-        print("%d sec" % t)
+        #print("%d sec" % t)
         self.mib.cleanUp(t,threshold,delThreshold)
         executor.submit(self.run,t,threshold,delThreshold)
 

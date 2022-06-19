@@ -1,4 +1,6 @@
+from ctypes import sizeof
 from threading import Lock
+import sys
 
 class MIBsec:
     def __init__(self):
@@ -28,7 +30,7 @@ class MIBsec:
     def get(self,idOper):
         self.lock.acquire()
         try:
-            return None if str(idOper) not in self.mib else self.mib[str(idOper)]
+            return None if str(idOper) not in self.mib or self.mib[str(idOper)]['status'] != 'ready' else self.mib[str(idOper)]
         finally:
             self.lock.release()
     def getValue(self,idOper):
@@ -47,6 +49,9 @@ class MIBsec:
             if idOper in self.mib:
                 self.mib[idOper]['valueArg'] = value
                 self.mib[idOper]['status'] = status
+                self.mib[idOper]['typeArg'] = type(value)
+                self.mib[idOper]['sizeArg'] = sys.getsizeof(value)
+                
                 return True
             return False
         finally:

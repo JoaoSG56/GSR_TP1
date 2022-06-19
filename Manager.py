@@ -37,8 +37,7 @@ def request(s,fernet,oids,type):
     print(message)
 
 def interpreter(socket,fernet):
-    r = input(':> ')
-    while r and r!='exit':
+    while r := input(':> '):
         #if a:=re.search(r'^(get)( (-s))? (\d+)$',r): # importantes: 1 3 4
         if a:=re.search(r'^(get) (\d+)$',r): # importantes: 2
             print(a.group(2))
@@ -56,7 +55,6 @@ def interpreter(socket,fernet):
             help()
         else:
             print("invalid input -> see commands: 'help'")
-        r = input(':> ')
 
 def main():
     s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
