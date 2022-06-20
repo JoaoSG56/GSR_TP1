@@ -79,6 +79,19 @@ def get(oid):
         #     print(' = '.join([x.prettyPrint() for x in varBind]))
         return varBinds[0][1].prettyPrint()
 
+def packetValidation(packet):
+    if packet.getType() == 'SET':
+        if len(packet.getPayload()) != 3:
+            print('pacote inválido : %d' % len(packet.getPayload()))
+            return False
+        if packet.getPayload()[0] not in ['.1.1.1','.2.2.2','.3.3.3']:
+            print('pacote inválido2 : ' + packet.getPayload()[0])
+            return False
+    else:
+        print("type : " + packet.getType())
+    return True
+    
+
 def clientHandler(conn,address,state,fernet):
     while message:= conn.recv(1024):
 
@@ -90,28 +103,47 @@ def clientHandler(conn,address,state,fernet):
         print("Pacote recebido:")
         packet.printaPacket()
 
+        # validação do packet/autenticação
 
-        if packet.oids[0] == '.3.3.3':
+
+
+        oid = None
+        if packet.getPayload()[0] == '.3.3.3':
             # hardcoded
             print('get from mibsec')
             try:
-                if (a:=state.getValue(packet.oids[1])) is not None:
-                    conn.sendall(a.encode('latin-1'))
+                if (a:=state.getValue(packet.getPayload()[1])) is not None:
+                    p = Packet(socket.gethostbyname(socket.gethostname()),[a,'test'],'response')
+                    conn.sendall(p.pack(fernet))
                 else:
-                    conn.sendall("Id invalid or no answer yet".encode('latin-1'))
+                    a = "Id invalid or no answer yet"
+                    p = Packet(socket.gethostbyname(socket.gethostname()),[a,'test'],'response')
+                    conn.sendall(p.pack(fernet))
             except Exception as e:
                 print(e)
-                conn.sendall(b"Error")
-        else:
-            type = 'GET' if packet.type == '0' else 'GET-NEXT'
-            key = state.add(type,address,'default',packet.oids[0],None,None,0,20,'received')
-            print('received')
+                a = 'Error'
+                p = Packet(socket.gethostbyname(socket.gethostname()),[a],'response')
+                conn.sendall(p.pack(fernet))
+        elif packet.getPayload()[0] == '.1.1.1': # get
+            key = state.add('GET',address,'default',packet.getPayload()[1],None,None,0,20,'received')
+            print('received get')
             
-            conn.sendall(('received | idOper='+str(key)).encode('latin-1'))
-            
-            value = get(packet.oids[0]) if packet.type == '0' else getNext(packet.oids[0])
+            p = Packet(socket.gethostbyname(socket.gethostname()),['received ~ idOper='+str(key),'test'],'response')
+            #conn.sendall(('received | idOper='+str(key)).encode('latin-1'))
+            conn.sendall(p.pack(fernet))
+            value = get(packet.getPayload()[1])
             state.updateValue(key,value,'ready')
             print('updated')
+        elif packet.getPayload()[0] == '.2.2.2': # getnext
+            key = state.add('GET-NEXT',address,'default',packet.getPayload()[1],None,None,0,20,'received')
+            print('received - get-next')
+
+            p = Packet(socket.gethostbyname(socket.gethostname()),['received ~ idOper='+str(key),'test'],'response')
+            #conn.sendall(('received | idOper='+str(key)).encode('latin-1'))
+            conn.sendall(p.pack(fernet))
+            value = getNext(packet.getPayload()[1])
+            state.updateValue(key,value,'ready')
+            print('updated') 
 def main():
 
     ss = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -121,7 +153,7 @@ def main():
     fernet= Fernet(keys["key"])
     state = MIBsec()
     cleaner = Cleaner(state)
-    executor.submit(cleaner.run,1,0,-10)
+    #executor.submit(cleaner.run,1,0,-10)
 
     while True:
         ss.listen()

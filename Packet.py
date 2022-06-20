@@ -4,21 +4,20 @@ import hashlib
 
 class Packet:
     def __init__(self, *args):
-        if len(args) > 1 and isinstance(args[0],str) and isinstance(args[1],list):
+        if len(args) > 1:
             self.ip_from = args[0]
-            self.oids = args[1]
+            self.payload = args[1]
             self.type = args[2]
 
         elif len(args) == 0:
-            print('decoding ...')
             self.ip_from = None
-            self.oids = None
+            self.payload = None
             self.type = None
 
     def pack(self,fernet):
-        header = bytearray(("$".join(['GET-'+self.type,self.ip_from])).encode('latin-1'))
+        header = bytearray(("$".join([self.type,self.ip_from])).encode('latin-1'))
         divisao = "|".encode('latin-1')
-        encoded = ";".join(self.oids).encode('latin-1')
+        encoded = ";".join(self.payload).encode('latin-1')
             
         return header+divisao+encoded
 
@@ -46,7 +45,7 @@ class Packet:
         divisao = "|".encode('latin-1')
 
         toHash = b''
-        for oid in self.oids:
+        for oid in self.payload:
             toHash += divisao + oid.encode('latin-1')
 
         return hashlib.md5(header+toHash).hexdigest()
@@ -61,17 +60,18 @@ class Packet:
         # h = hashlib.md5(header+data).hexdigest()
         # # print(h)
         # return h
-
+    def getType(self):
+        return self.type
 
     def decode(self,packetBytes,fernet):
         msg = packetBytes.decode('latin-1').split('|')
         header = msg[0].split("$")
         payload = msg[1]
         self.ip_from = header[1]
-        self.type = header[0].split("-")[1]
-        self.oids = []
+        self.type = header[0]
+        self.payload = []
         for oid in payload.split(';'):
-            self.oids.append(oid)
+            self.payload.append(oid)
         return msg[-1]
         # header = struct.unpack("!4h", packetBytes[0:8])
         # # print(header)
@@ -82,8 +82,11 @@ class Packet:
         # # print(packetBytes.decode('utf-8'))
         # return hash
 
+    def getPayload(self):
+        return self.payload
+
     def printaPacket(self):
         print('ipfrom: ' + self.ip_from )
         print('oids: ',end="")
-        print(self.oids)
+        print(self.payload)
         print('type: ' + self.type)

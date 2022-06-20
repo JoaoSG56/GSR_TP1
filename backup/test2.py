@@ -1,16 +1,7 @@
-from concurrent.futures import ThreadPoolExecutor
-import time
+import secrets
+from cryptography.fernet import Fernet
+import json
 
-def wait_on_future():
-    time.sleep(1)
-    print("1 sec")
-    
-    # This will never complete because there is only one worker thread and
-    # it is executing this function.
-    executor.submit(wait_on_future)
+keys = json.load(open('key.json'))
+fernet= Fernet(keys["key"])
 
-executor = ThreadPoolExecutor(max_workers=1)
-executor.submit(wait_on_future)
-
-while True:
-    pass
