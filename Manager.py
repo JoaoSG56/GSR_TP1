@@ -11,8 +11,8 @@ fernet= Fernet(keys["key"])
 k = bytes(keys["key"],'latin-1')
 connectionState = {
     "secret":None,
-    "state":"authenticated"
-    #"state":"deauthenticated"
+    #"state":"authenticated"
+    "state":"deauthenticated"
     # deauthenticated -> requested
     # requested : pode receber um invalid | requestAuth
     # requested -> deauthenticated (caso receba invalid)
@@ -44,14 +44,26 @@ def sendRequestAuth(s):
     secret = secrets.token_bytes()
     connectionState['secret'] = secret
     connectionState['state'] = 'requested'
-    p = Packet(socket.gethostbyname(socket.gethostname()),[encrypt(k,secret)],'requestAuth')
-    s.sendall(p.pack())
+    print("secret:")
+    print(secret)
+    a = encrypt(k,secret+b";"+'test'.encode('latin-1'))
+    print("ecrypted:")
+    print(a)
+    p = Packet(socket.gethostbyname(socket.gethostname()),[a],'requestAuth')
+    s.sendall(p.pack(fernet))
 
 def handleRequestAuth(s,packet):
-    agentsecret = decrypt(connectionState['secret'],";".join(packet.getPayload()))
+
+    agentSecret = decrypt(connectionState['secret'],";".join(packet.getPayload())).split(b';')[0]
+    print("recebido:")
+    print(agentSecret)
     connectionState['state'] = 'finalizing'
-    p = Packet(socket.gethostbyname(socket.gethostname()),[encrypt(k,agentsecret)],'requestAuth')
-    s.sendall(p.pack())
+
+    a = encrypt(k,agentSecret+b";test")
+    print("A enviar: ")
+    print(a)
+    p = Packet(socket.gethostbyname(socket.gethostname()),[a],'finalizeAuth')
+    s.sendall(p.pack(fernet))
 
     
 def waitForMessage(s,messageToSend):
@@ -67,6 +79,7 @@ def waitForMessage(s,messageToSend):
         waitForMessage(s,messageToSend)
 
     elif packet.getType() == 'successAuth':
+        print('success auth')
         connectionState['state'] = 'authenticated'
         s.sendall(messageToSend)
         waitForMessage(s,messageToSend)
@@ -114,6 +127,8 @@ def interpreter(socket,fernet):
             request(socket,fernet,['.2.2.2',a.group(2),'test'])
         elif r == 'help':
             help()
+        elif r == 'exit':
+            break
         else:
             print("invalid input -> see commands: 'help'")
 

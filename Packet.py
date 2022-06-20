@@ -16,10 +16,17 @@ class Packet:
 
     def pack(self,fernet):
         header = bytearray(("$".join([self.type,self.ip_from])).encode('latin-1'))
-        divisao = "|".encode('latin-1')
-        encoded = ";".join(self.payload).encode('latin-1')
+        #divisao = "|".encode('latin-1')
+        divisao = ";".encode('latin-1')
+        encoded = b""
+        for p in self.payload:
+            if isinstance(p,bytes):
+                encoded += (p+divisao)
+            else:
+                encoded += (p.encode('latin-1')+divisao)
+        #encoded = ";".join(self.payload).encode('latin-1')
             
-        return header+divisao+encoded
+        return header+"|".encode('latin-1')+encoded[:-1]
 
         # ip = [int(i) for i in self.ip_from.split('.')]
         # # 4s -> ip {}H -> qt de oids
@@ -62,6 +69,10 @@ class Packet:
         # return h
     def getType(self):
         return self.type
+
+    def getOriginPayload(self):
+        return(";".join(self.payload))
+
 
     def decode(self,packetBytes,fernet):
         msg = packetBytes.decode('latin-1').split('|')

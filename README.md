@@ -46,7 +46,8 @@ special :
 ### MIB de autenticação
 Address | state | TTL
 ---|---|---
-('127.0.0.1',12) | 'valid' | 30
+('127.0.0.1',12) | 'authenticated' | 30
+                   'expired'
 * state:
     * expired - quando autenticação já não é válida. Próximo pedido a receber é pedido de request
     * requested - quando recebe um pedido de request de autenticação. Agent cria segredo, encripta-o com o segredo recebido, e coloca state a 'sent'
