@@ -41,6 +41,7 @@ class UserMIB:
     def isAuthenticated(self,address):
         self.lock.acquire()
         try:
+            print("[DEBUG] " + self.mib[address]['state'] + " " + str(self.mib[address]['ttl']))
             return False if address not in self.mib else self.mib[address]['state']=='authenticated'
         finally:
             self.lock.release()
@@ -50,12 +51,13 @@ class UserMIB:
     # se abaixo de delThreshold, elimina entrada para libertar espaço
     def cleanUp(self,time,threshold,delThreshold):
         self.lock.acquire()
+        print("cleaning upp..")
         try:
             for key in self.mib:
                 self.mib[key]["ttl"] -= time
                 # Se ttl baixa de threshold mas continua acima de delthreshold
                 if self.mib[key]["ttl"] < threshold and self.mib[key]["ttl"] > delThreshold and self.mib[key]['state'] != 'expired':
-                    self.mib[key]['state'] = False
+                    self.mib[key]['state'] = 'expired'
                 # Se ttl baixa o delThreshold
                 elif self.mib[key]['ttl'] < delThreshold:
                     del self.mib[key]

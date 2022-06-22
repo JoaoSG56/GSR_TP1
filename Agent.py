@@ -18,10 +18,11 @@ class Cleaner:
         self.users = users
 
     def run(self,t,threshold,delThreshold):
+        #while True:
         time.sleep(t)
         #print("%d sec" % t)
         self.mib.cleanUp(t,threshold,delThreshold)
-        self.users.cleanup(t,threshold,delThreshold)
+        self.users.cleanUp(t,threshold,delThreshold)
         executor.submit(self.run,t,threshold,delThreshold)
 
 executor = ThreadPoolExecutor(max_workers=1)
@@ -29,8 +30,7 @@ executor = ThreadPoolExecutor(max_workers=1)
 keys = json.load(open('key.json'))
 fernet= Fernet(keys["key"])
 key = bytes(keys["key"],'latin-1')
-state = MIBsec()
-users = UserMIB()
+
 
 def getNext(oid):
     try:
@@ -99,7 +99,7 @@ def packetValidation(packet):
     return True
 
 
-def handleSET(conn,address,packet):
+def handleSET(conn,address,packet,state):
     if packet.getPayload()[0] == '.3.3.3':
         # hardcoded
         print('get from mibsec')
@@ -137,7 +137,7 @@ def handleSET(conn,address,packet):
         state.updateValue(key,value,'ready')
         print('updated') 
 
-def handleRequestAuth(conn,address,packet):
+def handleRequestAuth(conn,address,packet,users):
     # desencriptar mensagem
     # -> "secret;checksum"
     managerSecret = decrypt(key,";".join(packet.getPayload())).split(b";")[0]
@@ -156,7 +156,7 @@ def handleRequestAuth(conn,address,packet):
     conn.sendall(p.pack(fernet))
     
 
-def clientHandler(conn,address):
+def clientHandler(conn,address,state,users):
     while message:= conn.recv(1024):
 
         packet = Packet()
@@ -174,12 +174,13 @@ def clientHandler(conn,address):
         if packet.getType() == 'SET':
             # validação do packet/autenticação
             if users.isAuthenticated(address):
-                handleSET(conn,address,packet)
+                handleSET(conn,address,packet,state)
             else:
+                print("EXPIRED")
                 p = Packet(socket.gethostbyname(socket.gethostname()),[],'expiredAuth')
                 conn.sendall(p.pack(fernet))
         elif packet.getType() == 'requestAuth':
-            handleRequestAuth(conn,address,packet)
+            handleRequestAuth(conn,address,packet,users)
         elif packet.getType() == 'finalizeAuth':
             a = users.getSecret(address)
             b = decrypt(key,";".join(packet.getPayload())).split(b";")[0]
@@ -196,19 +197,21 @@ def clientHandler(conn,address):
                 conn.sendall(p.pack(fernet))
 
 def main():
-
+    state = MIBsec()
+    users = UserMIB()
     ss = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     ss.bind(('',1234))
     
     cleaner = Cleaner(state,users)
     executor.submit(cleaner.run,1,0,-10)
-
+    #t = threading.Thread(target=cleaner.run, args=(1,0,-10))
+    #t.start()
     while True:
         ss.listen()
         conn, address = ss.accept()
 
-        t = threading.Thread(target = clientHandler, args=(conn,address,))
+        t = threading.Thread(target = clientHandler, args=(conn,address,state,users,))
         t.setDaemon(True)
         t.start()
         

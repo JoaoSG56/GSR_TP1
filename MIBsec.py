@@ -1,4 +1,3 @@
-from ctypes import sizeof
 from threading import Lock
 import sys
 
@@ -61,6 +60,7 @@ class MIBsec:
     # se ttl final for estritamente menor que <threshold> então remove entrada
     def cleanUp(self,time,threshold,delThreshold):
         self.lock.acquire()
+        print("here")
         try:
             for key in self.mib:
                 self.mib[key]["ttlOper"] -= time
