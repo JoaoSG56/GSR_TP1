@@ -7,7 +7,7 @@ from pysnmp.smi.rfc1902 import *
 from MIBsec import MIBsec
 from UserMIB import UserMIB
 from concurrent.futures import ThreadPoolExecutor
-from Crypter import *
+#from Crypter import *
 import time
 import secrets
 
@@ -29,7 +29,7 @@ executor = ThreadPoolExecutor(max_workers=1)
 
 keys = json.load(open('key.json'))
 fernet= Fernet(keys["key"])
-key = bytes(keys["key"],'latin-1')
+#key = bytes(keys["key"],'latin-1')
 
 
 def getNext(oid):
@@ -100,21 +100,24 @@ def packetValidation(packet):
 
 
 def handleSET(conn,address,packet,state):
+    # atualizar payload
+    packet.setPayload(packet.decryptPayload(fernet),decode=True)
+    print(packet.getPayload())
     if packet.getPayload()[0] == '.3.3.3':
         # hardcoded
         print('get from mibsec')
         try:
             if (a:=state.getValue(packet.getPayload()[1])) is not None:
-                p = Packet(socket.gethostbyname(socket.gethostname()),[a,'test'],'response')
+                p = Packet(socket.gethostbyname(socket.gethostname()),a,'response')
                 conn.sendall(p.pack(fernet))
             else:
                 a = "Id invalid or no answer yet"
-                p = Packet(socket.gethostbyname(socket.gethostname()),[a,'test'],'response')
+                p = Packet(socket.gethostbyname(socket.gethostname()),a,'response')
                 conn.sendall(p.pack(fernet))
         except Exception as e:
             print(e)
             a = 'Error'
-            p = Packet(socket.gethostbyname(socket.gethostname()),[a],'response')
+            p = Packet(socket.gethostbyname(socket.gethostname()),a,'response')
             conn.sendall(p.pack(fernet))
     elif packet.getPayload()[0] == '.1.1.1': # get
         key = state.add('GET',address,'default',packet.getPayload()[1],None,None,0,20,'received')
@@ -130,7 +133,7 @@ def handleSET(conn,address,packet,state):
         key = state.add('GET-NEXT',address,'default',packet.getPayload()[1],None,None,0,20,'received')
         print('received - get-next')
 
-        p = Packet(socket.gethostbyname(socket.gethostname()),['received ~ idOper='+str(key),'test'],'response')
+        p = Packet(socket.gethostbyname(socket.gethostname()),'received ~ idOper='+str(key),'response')
         #conn.sendall(('received | idOper='+str(key)).encode('latin-1'))
         conn.sendall(p.pack(fernet))
         value = getNext(packet.getPayload()[1])
@@ -140,27 +143,25 @@ def handleSET(conn,address,packet,state):
 def handleRequestAuth(conn,address,packet,users):
     # desencriptar mensagem
     # -> "secret;checksum"
-    managerSecret = decrypt(key,";".join(packet.getPayload())).split(b";")[0]
-    print("Recebido:")
+    managerSecret = packet.decryptPayload(fernet)[0]
+    print("managerSecret: RECEBIDO:")
     print(managerSecret)
-    secret = secrets.token_bytes()
+    #secret = secrets.token_bytes()
+    secret = Fernet.generate_key()
     users.add(address,'authenticating',None,secret)
     print("Segredo a enviar:")
     print(secret)
     # encriptar key gerada, com a key recebida ; checksum
-    a = encrypt(managerSecret,secret+b";test")
-    print("A enviar:")
-    print(a)
-
-    p = Packet(socket.gethostbyname(socket.gethostname()),[a],'requestAuth')
-    conn.sendall(p.pack(fernet))
+    managerFernet = Fernet(managerSecret)
+    p = Packet(socket.gethostbyname(socket.gethostname()),secret,'requestAuth')
+    conn.sendall(p.pack(managerFernet))
     
 
 def clientHandler(conn,address,state,users):
     while message:= conn.recv(1024):
 
         packet = Packet()
-        hash = packet.decode(message,fernet)
+        hash = packet.decode(message)
         #if hash != packet.getHash():
         #    print('Pacote comprometido!\nIgnorando packet ...')
         #    continue
@@ -183,8 +184,9 @@ def clientHandler(conn,address,state,users):
             handleRequestAuth(conn,address,packet,users)
         elif packet.getType() == 'finalizeAuth':
             a = users.getSecret(address)
-            b = decrypt(key,";".join(packet.getPayload())).split(b";")[0]
+            b = packet.decryptPayload(fernet)[0]
             print(a)
+            print("BMAL")
             print(b)
             print(a==b)
             if a==b:
@@ -193,7 +195,7 @@ def clientHandler(conn,address,state,users):
                 conn.sendall(p.pack(fernet))
             else:
                 users.add(address,'invalid',10,None)
-                p = Packet(socket.gethostbyname(socket.gethostname()),[],'successAuth')
+                p = Packet(socket.gethostbyname(socket.gethostname()),[],'invalidAuth')
                 conn.sendall(p.pack(fernet))
 
 def main():

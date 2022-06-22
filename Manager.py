@@ -3,12 +3,12 @@ import json
 from cryptography.fernet import Fernet
 from Packet import Packet
 import re
-from Crypter import *
-import secrets
+#from Crypter import *
+#import secrets
 
 keys = json.load(open('key.json'))
 fernet= Fernet(keys["key"])
-k = bytes(keys["key"],'latin-1')
+#k = bytes(keys["key"],'latin-1')
 connectionState = {
     "secret":None,
     #"state":"authenticated"
@@ -41,39 +41,37 @@ def help():
 
 def sendRequestAuth(s):
     # send requestAuth
-    secret = secrets.token_bytes()
+    #secret = secrets.token_bytes()
+    secret = Fernet.generate_key()
     connectionState['secret'] = secret
     connectionState['state'] = 'requested'
-    print("secret:")
+    print("secret created by sendRequestAuth:")
     print(secret)
-    a = encrypt(k,secret+b";"+'test'.encode('latin-1'))
-    print("ecrypted:")
-    print(a)
-    p = Packet(socket.gethostbyname(socket.gethostname()),[a],'requestAuth')
+    #a = encrypt(k,secret+b";"+'test'.encode('latin-1'))
+
+    p = Packet(socket.gethostbyname(socket.gethostname()),secret,'requestAuth')
     s.sendall(p.pack(fernet))
 
 def handleRequestAuth(s,packet):
-
-    agentSecret = decrypt(connectionState['secret'],";".join(packet.getPayload())).split(b';')[0]
-    print("recebido:")
+    secretFernet = Fernet(connectionState['secret'])
+    agentSecret = packet.decryptPayload(secretFernet)[0]
+    print("PROVAVELMENTE MUDAR ISTOrecebido:")
     print(agentSecret)
     connectionState['state'] = 'finalizing'
 
-    a = encrypt(k,agentSecret+b";test")
-    print("A enviar: ")
-    print(a)
-    p = Packet(socket.gethostbyname(socket.gethostname()),[a],'finalizeAuth')
+
+    p = Packet(socket.gethostbyname(socket.gethostname()),agentSecret,'finalizeAuth')
     s.sendall(p.pack(fernet))
 
     
 def waitForMessage(s,messageToSend):
     message = s.recv(1024)
     packet = Packet()
-    packet.decode(message,fernet)
+    packet.decode(message)
     if packet.getType() == 'response':
         # Caso a resposta tenha ";", vai dividir por várias partes
         # juntar essas partes
-        print(";".join(packet.getPayload()[:-1]))
+        print(packet.decryptPayload(fernet))
     elif packet.getType() == 'requestAuth':
         handleRequestAuth(s,packet)
         waitForMessage(s,messageToSend)
@@ -98,7 +96,7 @@ def request(s,fernet,oids):
 
     msg = Packet(socket.gethostbyname(socket.gethostname()),oids,'SET')
     pack = msg.pack(fernet)
-    print(pack)
+    #print(pack)
     if connectionState['state'] != 'authenticated':
         sendRequestAuth(s)
         waitForMessage(s,pack)

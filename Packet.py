@@ -1,12 +1,17 @@
+import base64
 from cryptography.fernet import Fernet
 import hashlib
 
 
 class Packet:
     def __init__(self, *args):
-        if len(args) > 1:
+        if len(args) == 3:
             self.ip_from = args[0]
-            self.payload = args[1]
+            
+            if isinstance(args[1],list):
+                self.payload = ";".join(args[1])
+            else:
+                self.payload = args[1]
             self.type = args[2]
 
         elif len(args) == 0:
@@ -19,14 +24,21 @@ class Packet:
         #divisao = "|".encode('latin-1')
         divisao = ";".encode('latin-1')
         encoded = b""
-        for p in self.payload:
-            if isinstance(p,bytes):
-                encoded += (p+divisao)
-            else:
-                encoded += (p.encode('latin-1')+divisao)
+        if isinstance(self.payload,bytes):
+            encoded = fernet.encrypt(self.payload)
+            return header+"|".encode('latin-1')+encoded
+        elif isinstance(self.payload,list):
+            for p in self.payload:
+                encoded += (fernet.encrypt(p.encode('latin-1'))+divisao)
+                return header+"|".encode('latin-1')+encoded[:-1]
+
+        else:
+            for p in self.payload.split(";"):
+                encoded += (fernet.encrypt(p.encode('latin-1'))+divisao)
+            return header+"|".encode('latin-1')+encoded[:-1]
         #encoded = ";".join(self.payload).encode('latin-1')
-            
-        return header+"|".encode('latin-1')+encoded[:-1]
+        
+        
 
         # ip = [int(i) for i in self.ip_from.split('.')]
         # # 4s -> ip {}H -> qt de oids
@@ -73,17 +85,28 @@ class Packet:
     def getOriginPayload(self):
         return(";".join(self.payload))
 
+    def decryptPayload(self,fernet):
+        payload = []
+        for i in self.payload.split(';'):
+            ai = i.encode('latin-1')
+            payload.append(fernet.decrypt(ai))
+            #payload.append(base64.decode(fernet.decrypt))
+        return payload
 
-    def decode(self,packetBytes,fernet):
+    def setPayload(self,newpayload,decode=True):
+        self.payload=[]
+        if decode:
+            for i in newpayload:
+                self.payload.append(i.decode('latin-1'))
+        else:
+            self.payload = newpayload
+
+    def decode(self,packetBytes):
         msg = packetBytes.decode('latin-1').split('|')
         header = msg[0].split("$")
-        payload = msg[1]
         self.ip_from = header[1]
         self.type = header[0]
-        self.payload = []
-        for oid in payload.split(';'):
-            self.payload.append(oid)
-        return msg[-1]
+        self.payload = msg[1]
         # header = struct.unpack("!4h", packetBytes[0:8])
         # # print(header)
         # self.ip_from = ".".join([str(x) for x in header])

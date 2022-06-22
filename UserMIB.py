@@ -51,7 +51,7 @@ class UserMIB:
     # se abaixo de delThreshold, elimina entrada para libertar espaço
     def cleanUp(self,time,threshold,delThreshold):
         self.lock.acquire()
-        print("cleaning upp..")
+        #print("cleaning upp..")
         try:
             for key in self.mib:
                 self.mib[key]["ttl"] -= time
