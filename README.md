@@ -81,3 +81,11 @@ response : Agent -> Manager
 .
 GET-0/1 : Manager -> Agent
 expiredAuth : Agent -> Manager
+
+
+## Por fazer:
+* adicionar checksum / hash
+* implementar assincronia
+* mudar source como sendo uma string
+    * implementar mib de string -> key
+    * 

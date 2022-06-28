@@ -71,7 +71,11 @@ def waitForMessage(s,messageToSend):
     if packet.getType() == 'response':
         # Caso a resposta tenha ";", vai dividir por várias partes
         # juntar essas partes
-        print(packet.decryptPayload(fernet))
+        originmessage = ""
+        for i in packet.decryptPayload(fernet):
+            originmessage += i.decode('latin-1') + ";"
+
+        print(originmessage[:-1])
     elif packet.getType() == 'requestAuth':
         handleRequestAuth(s,packet)
         waitForMessage(s,messageToSend)
@@ -79,7 +83,10 @@ def waitForMessage(s,messageToSend):
     elif packet.getType() == 'successAuth':
         print('success auth')
         connectionState['state'] = 'authenticated'
+        
         s.sendall(messageToSend)
+        print("sended")
+        print(messageToSend)
         waitForMessage(s,messageToSend)
     elif packet.getType() == 'expiredAuth':
         connectionState['state'] = 'deauthenticated'
@@ -112,11 +119,11 @@ def interpreter(socket,fernet):
     while r := input(':> '):
         #if a:=re.search(r'^(get)( (-s))? (\d+)$',r): # importantes: 1 3 4
         if a:=re.search(r'^(get) (\d+)$',r): # importantes: 2
-            print(a.group(2))
+            #print(a.group(2))
             print(f"sending get request with id {a.group(2)} to mibsec")
             request(socket,fernet,['.3.3.3',a.group(2),'test'])
         elif a:=re.search(r'^(get) ((\.\d+)+)$',r): # importantes: 2:
-                print(a.group(2))
+                #print(a.group(2))
                 print(f"sending get request with oid {a.group(2)} to mib")
                 request(socket,fernet,['.1.1.1',a.group(2),'test'])
 

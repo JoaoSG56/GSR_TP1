@@ -109,23 +109,35 @@ def handleSET(conn,address,packet,state):
         try:
             if (a:=state.getValue(packet.getPayload()[1])) is not None:
                 p = Packet(socket.gethostbyname(socket.gethostname()),a,'response')
-                conn.sendall(p.pack(fernet))
+                mts = p.pack(fernet)
+                print("Sending:")
+                print(mts)
+                conn.sendall(mts)
             else:
                 a = "Id invalid or no answer yet"
                 p = Packet(socket.gethostbyname(socket.gethostname()),a,'response')
-                conn.sendall(p.pack(fernet))
+                mts = p.pack(fernet)
+                print("Sending:")
+                print(mts)
+                conn.sendall(mts)
         except Exception as e:
             print(e)
             a = 'Error'
             p = Packet(socket.gethostbyname(socket.gethostname()),a,'response')
-            conn.sendall(p.pack(fernet))
+            mts=  p.pack(fernet)
+            print("Sending:")
+            print(mts)
+            conn.sendall(mts)
     elif packet.getPayload()[0] == '.1.1.1': # get
         key = state.add('GET',address,'default',packet.getPayload()[1],None,None,0,20,'received')
         print('received get')
         
         p = Packet(socket.gethostbyname(socket.gethostname()),['received ~ idOper='+str(key),'test'],'response')
         #conn.sendall(('received | idOper='+str(key)).encode('latin-1'))
-        conn.sendall(p.pack(fernet))
+        mts = p.pack(fernet)
+        print("Sending:")
+        print(mts)
+        conn.sendall(mts)
         value = get(packet.getPayload()[1])
         state.updateValue(key,value,'ready')
         print('updated')
@@ -135,7 +147,10 @@ def handleSET(conn,address,packet,state):
 
         p = Packet(socket.gethostbyname(socket.gethostname()),'received ~ idOper='+str(key),'response')
         #conn.sendall(('received | idOper='+str(key)).encode('latin-1'))
-        conn.sendall(p.pack(fernet))
+        mts = p.pack(fernet)
+        print("Sending:")
+        print(mts)
+        conn.sendall(mts)
         value = getNext(packet.getPayload()[1])
         state.updateValue(key,value,'ready')
         print('updated') 
@@ -154,7 +169,10 @@ def handleRequestAuth(conn,address,packet,users):
     # encriptar key gerada, com a key recebida ; checksum
     managerFernet = Fernet(managerSecret)
     p = Packet(socket.gethostbyname(socket.gethostname()),secret,'requestAuth')
-    conn.sendall(p.pack(managerFernet))
+    mts = p.pack(managerFernet)
+    print("Sending:")
+    print(mts)
+    conn.sendall(mts)
     
 
 def clientHandler(conn,address,state,users):
@@ -165,12 +183,8 @@ def clientHandler(conn,address,state,users):
         #if hash != packet.getHash():
         #    print('Pacote comprometido!\nIgnorando packet ...')
         #    continue
-        print("Pacote recebido:")
-        packet.printaPacket()
-
-        
-
-
+        # print("Pacote recebido:")
+        # packet.printaPacket()
 
         if packet.getType() == 'SET':
             # validação do packet/autenticação
@@ -179,7 +193,10 @@ def clientHandler(conn,address,state,users):
             else:
                 print("EXPIRED")
                 p = Packet(socket.gethostbyname(socket.gethostname()),[],'expiredAuth')
-                conn.sendall(p.pack(fernet))
+                mts = p.pack(fernet)
+                print("Sending:")
+                print(mts)
+                conn.sendall(mts)
         elif packet.getType() == 'requestAuth':
             handleRequestAuth(conn,address,packet,users)
         elif packet.getType() == 'finalizeAuth':
@@ -192,11 +209,17 @@ def clientHandler(conn,address,state,users):
             if a==b:
                 users.add(address,'authenticated',20,None)
                 p = Packet(socket.gethostbyname(socket.gethostname()),[],'successAuth')
-                conn.sendall(p.pack(fernet))
+                mts = p.pack(fernet)
+                print("Sending:")
+                print(mts)
+                conn.sendall(mts)
             else:
                 users.add(address,'invalid',10,None)
                 p = Packet(socket.gethostbyname(socket.gethostname()),[],'invalidAuth')
-                conn.sendall(p.pack(fernet))
+                mts = p.pack(fernet)
+                print("Sending:")
+                print(mts)
+                conn.sendall(mts)
 
 def main():
     state = MIBsec()

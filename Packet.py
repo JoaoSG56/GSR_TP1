@@ -8,10 +8,7 @@ class Packet:
         if len(args) == 3:
             self.ip_from = args[0]
             
-            if isinstance(args[1],list):
-                self.payload = ";".join(args[1])
-            else:
-                self.payload = args[1]
+            self.payload = args[1]
             self.type = args[2]
 
         elif len(args) == 0:
@@ -30,12 +27,13 @@ class Packet:
         elif isinstance(self.payload,list):
             for p in self.payload:
                 encoded += (fernet.encrypt(p.encode('latin-1'))+divisao)
-                return header+"|".encode('latin-1')+encoded[:-1]
+            return header+"|".encode('latin-1')+encoded[:-1]
 
         else:
-            for p in self.payload.split(";"):
-                encoded += (fernet.encrypt(p.encode('latin-1'))+divisao)
-            return header+"|".encode('latin-1')+encoded[:-1]
+            # for p in self.payload.split(";"):
+            #     encoded += (fernet.encrypt(p.encode('latin-1'))+divisao)
+            # return header+"|".encode('latin-1')+encoded[:-1]
+            return header+"|".encode("latin-1")+fernet.encrypt(self.payload.encode('latin-1'))
         #encoded = ";".join(self.payload).encode('latin-1')
         
         
