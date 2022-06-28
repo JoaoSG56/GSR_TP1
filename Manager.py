@@ -50,13 +50,15 @@ def sendRequestAuth(s):
     #a = encrypt(k,secret+b";"+'test'.encode('latin-1'))
 
     p = Packet(socket.gethostbyname(socket.gethostname()),secret,'requestAuth')
-    s.sendall(p.pack(fernet))
+    
+    mts = p.pack(fernet)
+    # print("sending:")
+    # print(mts)
+    s.sendall(mts)
 
 def handleRequestAuth(s,packet):
     secretFernet = Fernet(connectionState['secret'])
     agentSecret = packet.decryptPayload(secretFernet)[0]
-    print("PROVAVELMENTE MUDAR ISTOrecebido:")
-    print(agentSecret)
     connectionState['state'] = 'finalizing'
 
 
@@ -95,6 +97,12 @@ def waitForMessage(s,messageToSend):
     elif packet.getType() == 'invalidAuth':
         print("Invalid Key. Switch the key")
         exit()
+    elif packet.getType() == 'invalidMessage':
+        print("[WARNING] BAD CHECKSUM")
+        print("keep trying?? ...")
+        exit()
+        #s.sendall(messageToSend)
+        #waitForMessage(s,messageToSend)
 
 
 def request(s,fernet,oids):
@@ -121,15 +129,15 @@ def interpreter(socket,fernet):
         if a:=re.search(r'^(get) (\d+)$',r): # importantes: 2
             #print(a.group(2))
             print(f"sending get request with id {a.group(2)} to mibsec")
-            request(socket,fernet,['.3.3.3',a.group(2),'test'])
+            request(socket,fernet,['.3.3.3',a.group(2)])
         elif a:=re.search(r'^(get) ((\.\d+)+)$',r): # importantes: 2:
                 #print(a.group(2))
                 print(f"sending get request with oid {a.group(2)} to mib")
-                request(socket,fernet,['.1.1.1',a.group(2),'test'])
+                request(socket,fernet,['.1.1.1',a.group(2)])
 
         elif a:=re.search(r'^(getnext) ((\.\d+)+)$',r): # importantes: 1 3 4
             print(f"sending getnext request with id {a.group(2)} to mib")
-            request(socket,fernet,['.2.2.2',a.group(2),'test'])
+            request(socket,fernet,['.2.2.2',a.group(2)])
         elif r == 'help':
             help()
         elif r == 'exit':

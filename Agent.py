@@ -1,3 +1,4 @@
+from base64 import decode
 import socket, threading
 import json
 from cryptography.fernet import Fernet
@@ -23,9 +24,9 @@ class Cleaner:
         #print("%d sec" % t)
         self.mib.cleanUp(t,threshold,delThreshold)
         self.users.cleanUp(t,threshold,delThreshold)
-        executor.submit(self.run,t,threshold,delThreshold)
+        #executor.submit(self.run,t,threshold,delThreshold)
 
-executor = ThreadPoolExecutor(max_workers=1)
+#executor = ThreadPoolExecutor(max_workers=1)
 
 keys = json.load(open('key.json'))
 fernet= Fernet(keys["key"])
@@ -99,10 +100,21 @@ def packetValidation(packet):
     return True
 
 
-def handleSET(conn,address,packet,state):
+def handleSET(conn,address,packet,state, hash):
     # atualizar payload
+    # decode = true pois o decrypt apenas desencripta, sendo necessário dar decode
+    # Aqui interessa-nos a mensagem como string e não como bytes
     packet.setPayload(packet.decryptPayload(fernet),decode=True)
     print(packet.getPayload())
+
+    # Verificar checksum
+    if hash != packet.getHash():
+        print("[INFO] bad checksum")
+        p = Packet(socket.gethostbyname(socket.gethostname()),[],'invalidMessage')
+        mts = p.pack(fernet)
+        conn.sendall(mts)
+        return
+
     if packet.getPayload()[0] == '.3.3.3':
         # hardcoded
         print('get from mibsec')
@@ -155,10 +167,21 @@ def handleSET(conn,address,packet,state):
         state.updateValue(key,value,'ready')
         print('updated') 
 
-def handleRequestAuth(conn,address,packet,users):
+def handleRequestAuth(conn,address,packet,users,hash):
     # desencriptar mensagem
     # -> "secret;checksum"
-    managerSecret = packet.decryptPayload(fernet)[0]
+    packet.setPayload(packet.decryptPayload(fernet), decode=False)
+    
+    # verificar checksum
+    if hash != packet.getHash():
+        print("[INFO2] bad checksum")
+        p = Packet(socket.gethostbyname(socket.gethostname()),[],'invalidMessage')
+        mts = p.pack(fernet)
+        conn.sendall(mts)
+        return
+    
+    
+    managerSecret = packet.getPayload()[0]
     print("managerSecret: RECEBIDO:")
     print(managerSecret)
     #secret = secrets.token_bytes()
@@ -189,7 +212,7 @@ def clientHandler(conn,address,state,users):
         if packet.getType() == 'SET':
             # validação do packet/autenticação
             if users.isAuthenticated(address):
-                handleSET(conn,address,packet,state)
+                handleSET(conn,address,packet,state,hash)
             else:
                 print("EXPIRED")
                 p = Packet(socket.gethostbyname(socket.gethostname()),[],'expiredAuth')
@@ -198,13 +221,21 @@ def clientHandler(conn,address,state,users):
                 print(mts)
                 conn.sendall(mts)
         elif packet.getType() == 'requestAuth':
-            handleRequestAuth(conn,address,packet,users)
+            handleRequestAuth(conn,address,packet,users,hash)
         elif packet.getType() == 'finalizeAuth':
+            packet.setPayload(packet.decryptPayload(fernet),decode=False)
+            
+            if hash != packet.getHash():
+                print("[INFO3] bad checksum")
+                p = Packet(socket.gethostbyname(socket.gethostname()),[],'invalidMessage')
+                mts = p.pack(fernet)
+                conn.sendall(mts)
+                return
+    
+
+
             a = users.getSecret(address)
-            b = packet.decryptPayload(fernet)[0]
-            print(a)
-            print("BMAL")
-            print(b)
+            b = packet.getPayload()[0]
             print(a==b)
             if a==b:
                 users.add(address,'authenticated',20,None)
@@ -229,9 +260,9 @@ def main():
     ss.bind(('',1234))
     
     cleaner = Cleaner(state,users)
-    executor.submit(cleaner.run,1,0,-10)
-    #t = threading.Thread(target=cleaner.run, args=(1,0,-10))
-    #t.start()
+    #executor.submit(cleaner.run,1,0,-10)
+    t = threading.Thread(target=cleaner.run, args=(1,0,-10))
+    t.start()
     while True:
         ss.listen()
         conn, address = ss.accept()
@@ -241,7 +272,4 @@ def main():
         t.start()
         
     
-        
-        #ss.sendto(packet.ip_from.encode('latin-1')+b' ' + (','.join(packet.oids)).encode('latin-1'),address)
-
 main()

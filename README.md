@@ -68,6 +68,7 @@ Address | state | TTL
 1. invalidAuth - autenticação inválida (palavra pass inválida)
 1. expiredAuth - autenticação expirada (não tem entrada ou ttl expirou)
 1. successAuth
+1. invalidMessage - bad checksum
 
 ### Ordem de mensagem normal
 requestAuth : Manager -> Agent
@@ -85,6 +86,8 @@ expiredAuth : Agent -> Manager
 
 ## Por fazer:
 * adicionar checksum / hash
+    * implementado no SET
+    * falta verificação nos outros
 * implementar assincronia
 * mudar source como sendo uma string
     * implementar mib de string -> key
