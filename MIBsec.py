@@ -60,9 +60,9 @@ class MIBsec:
     # se ttl final for estritamente menor que <threshold> então remove entrada
     def cleanUp(self,time,threshold,delThreshold):
         self.lock.acquire()
-        #print("here")
+        print("cleaning")
         try:
-            for key in self.mib:
+            for key in self.mib.copy():
                 self.mib[key]["ttlOper"] -= time
                 # Se ttl baixa de threshold mas continua acima de delthreshold
                 if self.mib[key]["ttlOper"] < threshold and self.mib[key]["ttlOper"] > delThreshold and self.mib[key]['status'] != 'invalid':

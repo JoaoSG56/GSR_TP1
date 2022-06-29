@@ -16,11 +16,21 @@ class UserMIB:
         finally:
             self.lock.release()
 
+    def getState(self,address):
+        self.lock.acquire()
+        try:
+            if address in self.mib:
+                return self.mib[address]['state']
+            else:
+                return "invalid"
+        finally:
+            self.lock.release()
+
     def authenticate(self,address,ttl):
         self.lock.acquire()
         try:
             if address in self.mib:
-                self.mib[address]['state'] = True
+                self.mib[address]['state'] = "authenticated"
                 self.mib[address]['ttl'] = ttl
             else:
                 return False
@@ -41,7 +51,7 @@ class UserMIB:
     def isAuthenticated(self,address):
         self.lock.acquire()
         try:
-            print("[DEBUG] " + self.mib[address]['state'] + " " + str(self.mib[address]['ttl']))
+            #print("[DEBUG] " + self.mib[address]['state'] + " " + str(self.mib[address]['ttl']))
             return False if address not in self.mib else self.mib[address]['state']=='authenticated'
         finally:
             self.lock.release()
@@ -53,7 +63,7 @@ class UserMIB:
         self.lock.acquire()
         #print("cleaning upp..")
         try:
-            for key in self.mib:
+            for key in self.mib.copy():
                 self.mib[key]["ttl"] -= time
                 # Se ttl baixa de threshold mas continua acima de delthreshold
                 if self.mib[key]["ttl"] < threshold and self.mib[key]["ttl"] > delThreshold and self.mib[key]['state'] != 'expired':

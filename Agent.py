@@ -19,11 +19,11 @@ class Cleaner:
         self.users = users
 
     def run(self,t,threshold,delThreshold):
-        #while True:
-        time.sleep(t)
+        while True:
+            time.sleep(t)
         #print("%d sec" % t)
-        self.mib.cleanUp(t,threshold,delThreshold)
-        self.users.cleanUp(t,threshold,delThreshold)
+            self.mib.cleanUp(t,threshold,delThreshold)
+            self.users.cleanUp(t,threshold,delThreshold)
         #executor.submit(self.run,t,threshold,delThreshold)
 
 #executor = ThreadPoolExecutor(max_workers=1)
@@ -100,21 +100,11 @@ def packetValidation(packet):
     return True
 
 
-def handleSET(conn,address,packet,state, hash):
+def handleSET(conn,address,packet,state):
     # atualizar payload
     # decode = true pois o decrypt apenas desencripta, sendo necessário dar decode
     # Aqui interessa-nos a mensagem como string e não como bytes
-    packet.setPayload(packet.decryptPayload(fernet),decode=True)
     print(packet.getPayload())
-
-    # Verificar checksum
-    if hash != packet.getHash():
-        print("[INFO] bad checksum")
-        p = Packet(socket.gethostbyname(socket.gethostname()),[],'invalidMessage')
-        mts = p.pack(fernet)
-        conn.sendall(mts)
-        return
-
     if packet.getPayload()[0] == '.3.3.3':
         # hardcoded
         print('get from mibsec')
@@ -167,13 +157,13 @@ def handleSET(conn,address,packet,state, hash):
         state.updateValue(key,value,'ready')
         print('updated') 
 
-def handleRequestAuth(conn,address,packet,users,hash):
+def handleRequestAuth(conn,address,packet,users):
     # desencriptar mensagem
     # -> "secret;checksum"
+    # mensagem vem com have, por isso não dar decode
     packet.setPayload(packet.decryptPayload(fernet), decode=False)
-    
-    # verificar checksum
-    if hash != packet.getHash():
+
+    if packet.calculateHash() != packet.getHash(fernet):
         print("[INFO2] bad checksum")
         p = Packet(socket.gethostbyname(socket.gethostname()),[],'invalidMessage')
         mts = p.pack(fernet)
@@ -202,7 +192,7 @@ def clientHandler(conn,address,state,users):
     while message:= conn.recv(1024):
 
         packet = Packet()
-        hash = packet.decode(message)
+        packet.decode(message)
         #if hash != packet.getHash():
         #    print('Pacote comprometido!\nIgnorando packet ...')
         #    continue
@@ -210,9 +200,16 @@ def clientHandler(conn,address,state,users):
         # packet.printaPacket()
 
         if packet.getType() == 'SET':
+            packet.setPayload(packet.decryptPayload(fernet), decode=True)
+            if packet.getHash(fernet) != packet.calculateHash():
+                print("[INFO] bad checksum")
+                p = Packet(socket.gethostbyname(socket.gethostname()),[],'invalidMessage')
+                mts = p.pack(fernet)
+                conn.sendall(mts)
+
             # validação do packet/autenticação
-            if users.isAuthenticated(address):
-                handleSET(conn,address,packet,state,hash)
+            elif users.isAuthenticated(address):
+                handleSET(conn,address,packet,state)
             else:
                 print("EXPIRED")
                 p = Packet(socket.gethostbyname(socket.gethostname()),[],'expiredAuth')
@@ -221,36 +218,40 @@ def clientHandler(conn,address,state,users):
                 print(mts)
                 conn.sendall(mts)
         elif packet.getType() == 'requestAuth':
-            handleRequestAuth(conn,address,packet,users,hash)
+            handleRequestAuth(conn,address,packet,users)
         elif packet.getType() == 'finalizeAuth':
+            if users.getState(address) != 'authenticating':
+                print("AQUIAQUIAQUIAQUIAQUIAQUIAQUIAQUIAQUIAQUIAQUIAQUI\nAQUIAQUIAQUIAQUIAQUIAQUIAQUIAQUI\nAQUIAQUIAQUIAQUIAQUIAQUIAQUIAQUI\nAQUIAQUIAQUIAQUIAQUIAQUIAQUIAQUI")
+                # enviar mensagem de invalido
+                # colocar estado como invalid
+                # adicionar aviso??
+            
             packet.setPayload(packet.decryptPayload(fernet),decode=False)
             
-            if hash != packet.getHash():
+            if packet.calculateHash() != packet.getHash(fernet):
                 print("[INFO3] bad checksum")
                 p = Packet(socket.gethostbyname(socket.gethostname()),[],'invalidMessage')
                 mts = p.pack(fernet)
                 conn.sendall(mts)
-                return
     
-
-
-            a = users.getSecret(address)
-            b = packet.getPayload()[0]
-            print(a==b)
-            if a==b:
-                users.add(address,'authenticated',20,None)
-                p = Packet(socket.gethostbyname(socket.gethostname()),[],'successAuth')
-                mts = p.pack(fernet)
-                print("Sending:")
-                print(mts)
-                conn.sendall(mts)
             else:
-                users.add(address,'invalid',10,None)
-                p = Packet(socket.gethostbyname(socket.gethostname()),[],'invalidAuth')
-                mts = p.pack(fernet)
-                print("Sending:")
-                print(mts)
-                conn.sendall(mts)
+                a = users.getSecret(address)
+                b = packet.getPayload()[0]
+                print(a==b)
+                if a==b:
+                    users.add(address,'authenticated',20,None)
+                    p = Packet(socket.gethostbyname(socket.gethostname()),[],'successAuth')
+                    mts = p.pack(fernet)
+                    print("Sending:")
+                    print(mts)
+                    conn.sendall(mts)
+                else:
+                    users.add(address,'invalid',10,None)
+                    p = Packet(socket.gethostbyname(socket.gethostname()),[],'invalidAuth')
+                    mts = p.pack(fernet)
+                    print("Sending:")
+                    print(mts)
+                    conn.sendall(mts)
 
 def main():
     state = MIBsec()

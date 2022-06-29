@@ -11,11 +11,13 @@ class Packet:
             
             self.payload = args[1]
             self.type = args[2]
+            self.checksum = None
 
         elif len(args) == 0:
             self.ip_from = None
             self.payload = None
             self.type = None
+            self.checksum = None
 
 
     def pack(self,fernet):
@@ -24,6 +26,7 @@ class Packet:
         divisao = ";".encode('latin-1')
         encoded = b""
         toHash = b""
+        # Quando é passada uma chave
         if isinstance(self.payload,bytes):
             toHash += header+"|".encode('latin-1')+self.payload
             h = doHash(toHash)
@@ -31,9 +34,10 @@ class Packet:
             print(h)
 
             encoded = fernet.encrypt(self.payload)
-            return header+"|".encode('latin-1')+encoded+divisao+h
+            return header+"$".encode('latin-1') + fernet.encrypt(h) +"|".encode('latin-1')+encoded
+        
+        
         elif isinstance(self.payload,list):
-            
             if len(self.payload) > 0:
                 # se lista não estiver vazia
                 # percorre a lista adicionando todos os elementos separados por ;
@@ -53,49 +57,29 @@ class Packet:
                 print("Hash Here 1:")
                 print(h)
                 # encoded já vem com o ";"
-                return header+"|".encode('latin-1')+encoded + h
+                return header+"$".encode('latin-1') + fernet.encrypt(h) +"|".encode('latin-1')+encoded[:-1]
             else:
                 # Se lista for vazia, então envia apenas a hash como payload
                 toHash = header+"|".encode('latin-1')
                 h = doHash(toHash)
                 print("Hash Here 2:")
                 print(h)
-                return header + "|".encode('latin-1')+h
+                return header+"$".encode('latin-1') + fernet.encrypt(h) + "|".encode('latin-1')
         else:
-            # for p in self.payload.split(";"):
-            #     encoded += (fernet.encrypt(p.encode('latin-1'))+divisao)
-            # return header+"|".encode('latin-1')+encoded[:-1]
             toHash = header+"|".encode("latin-1")+self.payload.encode('latin-1')
             h = doHash(toHash)
             print("Hash Here 3:")
             print(h)
-            return header+"|".encode("latin-1")+fernet.encrypt(self.payload.encode('latin-1')) + divisao + h
-        #encoded = ";".join(self.payload).encode('latin-1')
-        
-        
+            return header+"$".encode('latin-1') + fernet.encrypt(h) +"|".encode("latin-1")+fernet.encrypt(self.payload.encode('latin-1'))
 
-        # ip = [int(i) for i in self.ip_from.split('.')]
-        # # 4s -> ip {}H -> qt de oids
-        # header = struct.pack("!4h", *ip)
-        # data = b''
-        # # crypt = b''
-        # for o in self.oids:
-        #     data += bytes(o,'utf-8') + bytes(';','utf-8')
-        #     # crypt += fernet.encrypt(o.encode('utf-8')) + bytes(';','utf-8')
-        # h = hashlib.md5(header+data).hexdigest()
-        # msg = header + bytes(str(h),'utf-8') + fernet.encrypt(data)
-        # # print(h)
-        # # try:
-        # #     print('header:')
-        # #     print(struct.unpack("!4h", msg[0:8]))
-        # # except Exception as e:
-        # #     print(e)
-        # return msg
 
     # Calcula Hash do pacote
     # assume que o pacote contém já uma hash
     # usado para verificar se hashes coincidem
-    def getHash(self):
+    def getHash(self,fernet):
+        return fernet.decrypt(self.checksum)
+
+    def calculateHash(self):
         header = bytearray(("$".join([self.type,self.ip_from])).encode('latin-1'))
         #divisao = "|".encode('latin-1')
         divisao = ";".encode('latin-1')
@@ -132,12 +116,14 @@ class Packet:
 
     def decryptPayload(self,fernet):
         payload = []
-        for i in self.payload.split(';')[:-1]:
+        for i in self.payload.split(';'):
             ai = i.encode('latin-1')
             payload.append(fernet.decrypt(ai))
             #payload.append(base64.decode(fernet.decrypt))
         return payload
 
+    # É utilizado decode a True quando conteúdo contém oids encoded.
+    # decode a False quando payload vem com chaves, que são necessárias vir em bytes
     def setPayload(self,newpayload,decode=True):
         self.payload=[]
         if decode:
@@ -146,17 +132,14 @@ class Packet:
         else:
             self.payload = newpayload
 
-    # devolve pensagem decoded com o checksum incluido
+    
     def decode(self,packetBytes):
         msg = packetBytes.decode('latin-1').split('|')
         header = msg[0].split("$")
-        self.ip_from = header[1]
         self.type = header[0]
+        self.ip_from = header[1]
+        self.checksum = header[2].encode('latin-1')
         self.payload = msg[1]
-        h = msg[1].split(";")[-1].encode('latin-1')
-        print("HASH RETURNED:")
-        print(h)
-        return h
         # # print(self.oids)
         # # print(packetBytes.decode('utf-8'))
         # return hash

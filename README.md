@@ -20,7 +20,7 @@ else -> procurar na
 ## Packet
 Packet: HEADER|PAYLOAD
 
-HEADER: TYPE$SRC
+HEADER: TYPE$SRC$CHECKSUM
 TYPE: GET-0 // get
 TYPE: GET-1 // get-next
 TYPE: requestAuth
@@ -53,7 +53,10 @@ Address | state | TTL
     * requested - quando recebe um pedido de request de autenticação. Agent cria segredo, encripta-o com o segredo recebido, e coloca state a 'sent'
     * sent - segredo criado pelo agent enviado. Próximo pedido a ser recebido terá de ser um 'finalize' ou um 'request'
     * valid
-
+    * invalid
+Expired/invalid -> authenticating -> authenticated
+     quando é recebido pedido    quando é recebido pedido
+           "requestAuth"             finalize e é successful
 
 
 ## Tipos de msg
@@ -86,9 +89,12 @@ expiredAuth : Agent -> Manager
 
 ## Por fazer:
 * adicionar checksum / hash
-    * implementado no SET
-    * falta verificação nos outros
+    * implementado no SET - DONE
+    * falta verificação nos outros - 
 * implementar assincronia
 * mudar source como sendo uma string
     * implementar mib de string -> key
     * 
+* adicionar outras medidas de segurança
+    * quando várias mensagens são corrompidas
+    * quando ocorre uma autenticação falhada
