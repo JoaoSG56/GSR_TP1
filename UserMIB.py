@@ -1,5 +1,12 @@
 from threading import Lock
 
+
+# Address | state | TTL
+# ---|---|---
+# ('127.0.0.1',12) | 'authenticated' | 30
+#                    'expired'
+
+# Address = (User,('127.0.0.1',12))
 class UserMIB:
     def __init__(self):
         self.mib = {}
@@ -36,6 +43,31 @@ class UserMIB:
                 return False
         finally:
             self.lock.release()
+    
+    # Deauthenticates user
+    def deauthenticate(self,user):
+        self.lock.acquire()
+        try:
+            if user in self.mib:
+                self.mib[user]['state'] = "expired"
+            else:
+                return False
+        finally:
+            self.lock.release()
+
+    # deauthenticates all the 'users' that used this address
+    def deauthenticateAll(self,address):
+        self.lock.acquire()
+        try:
+            for user in self.mib:
+                if user[1] == address:
+                    self.mib[user]['state'] = "expired"
+            else:
+                return False
+        finally:
+            self.lock.release()
+
+    
 
     def getSecret(self,address):
         self.lock.acquire()

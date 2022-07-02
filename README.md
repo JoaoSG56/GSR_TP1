@@ -21,6 +21,7 @@ else -> procurar na
 Packet: HEADER|PAYLOAD
 
 HEADER: TYPE$SRC$CHECKSUM
+SRC = USER
 TYPE: GET-0 // get
 TYPE: GET-1 // get-next
 TYPE: requestAuth
@@ -48,6 +49,8 @@ Address | state | TTL
 ---|---|---
 ('127.0.0.1',12) | 'authenticated' | 30
                    'expired'
+
+Address = \[User,('127.0.0.1',12)\]
 * state:
     * expired - quando autenticação já não é válida. Próximo pedido a receber é pedido de request
     * requested - quando recebe um pedido de request de autenticação. Agent cria segredo, encripta-o com o segredo recebido, e coloca state a 'sent'
@@ -87,14 +90,23 @@ GET-0/1 : Manager -> Agent
 expiredAuth : Agent -> Manager
 
 
-## Por fazer:
-* adicionar checksum / hash
+## Feito:
+* adicionar checksum / hash - DONE
     * implementado no SET - DONE
-    * falta verificação nos outros - 
-* implementar assincronia
-* mudar source como sendo uma string
+    * falta verificação nos outros - DONE
+* mudar source como sendo uma string - Done
     * implementar mib de string -> key
     * 
+## Por fazer:
+
+* implementar assincronia
+    * thread-A continuamente a receber de servidor, a usar metódos de envio e imprimir no ecrâ
+    * thread-B a ler do cliente e a adicionar numa queue de pedidos, que vai ser lida pela thread-A. Enviar sinal quando adiciona um pedido
+    * thread-C? thread A passa só a receber pedidos do servidor e imprimir no ecrã. Thread C contém uma queue de envio para servidor, tanto da thread A como da thread B 
+
 * adicionar outras medidas de segurança
     * quando várias mensagens são corrompidas
     * quando ocorre uma autenticação falhada
+    * user inválido da mesma conexão
+
+* adicionar mib's diferentes

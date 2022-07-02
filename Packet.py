@@ -132,6 +132,8 @@ class Packet:
         else:
             self.payload = newpayload
 
+    def getUser(self):
+        return self.ip_from
     
     def decode(self,packetBytes):
         msg = packetBytes.decode('latin-1').split('|')

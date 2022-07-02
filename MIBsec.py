@@ -60,7 +60,7 @@ class MIBsec:
     # se ttl final for estritamente menor que <threshold> então remove entrada
     def cleanUp(self,time,threshold,delThreshold):
         self.lock.acquire()
-        print("cleaning")
+        #print("cleaning")
         try:
             for key in self.mib.copy():
                 self.mib[key]["ttlOper"] -= time
