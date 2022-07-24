@@ -139,7 +139,7 @@ class ClientHandler():
             key = self.mib.add('GET',self.address,'default',packet.getPayload()[1],None,None,0,20,'received')
             print('received get')
             
-            p = Packet(socket.gethostbyname(socket.gethostname()),['received ~ idOper='+str(key),'test'],'response')
+            p = Packet(socket.gethostbyname(socket.gethostname()),['received ~ idOper='+str(key)],'response')
             #conn.sendall(('received | idOper='+str(key)).encode('latin-1'))
             mts = p.pack(fernet)
             print("Sending:")
@@ -184,7 +184,7 @@ class ClientHandler():
         print(managerSecret)
         #secret = secrets.token_bytes()
         secret = Fernet.generate_key()
-        self.users.add(keyUser,'authenticating',None,secret)
+        self.users.add(keyUser,'authenticating',None,secret,managerSecret)
         print("Segredo a enviar:")
         print(secret)
         # encriptar key gerada, com a key recebida ; checksum
@@ -261,14 +261,15 @@ class ClientHandler():
                     b = packet.getPayload()[0]
                     print(a==b)
                     if a==b:
-                        self.users.add(keyUser,'authenticated',20,None)
-                        p = Packet(socket.gethostbyname(socket.gethostname()),[],'successAuth')
+                        p = Packet(socket.gethostbyname(socket.gethostname()),self.users.getSecretReceived(keyUser),'successAuth')
+                        self.users.add(keyUser,'authenticated',20,None,None)
+
                         mts = p.pack(fernet)
                         print("Sending:")
                         print(mts)
                         self.conn.sendall(mts)
                     else:
-                        self.users.add(keyUser,'invalid',10,None)
+                        self.users.add(keyUser,'invalid',10,None,None)
                         p = Packet(socket.gethostbyname(socket.gethostname()),[],'invalidAuth')
                         mts = p.pack(fernet)
                         print("Sending:")

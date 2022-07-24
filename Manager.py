@@ -6,6 +6,7 @@ import re
 import sys
 #from Crypter import *
 #import secrets
+debug = False
 
 
 #k = bytes(keys["key"],'latin-1')
@@ -50,8 +51,12 @@ class Manager:
         secret = Fernet.generate_key()
         connectionState['secret'] = secret
         connectionState['state'] = 'requested'
-        print("secret created by sendRequestAuth:")
-        print(secret)
+        
+        if debug:
+            print("secret created by sendRequestAuth:")
+            print(secret)
+
+
         #a = encrypt(k,secret+b";"+'test'.encode('latin-1'))
 
         p = Packet(self.user,secret,'requestAuth')
@@ -63,38 +68,69 @@ class Manager:
 
     def handleRequestAuth(self,packet):
         secretFernet = Fernet(connectionState['secret'])
-        agentSecret = packet.decryptPayload(secretFernet)[0]
-        connectionState['state'] = 'finalizing'
+        packet.setPayload(packet.decryptPayload(secretFernet), decode=True)
 
+        if packet.getHash(secretFernet) == packet.calculateHash():
+            #agentSecret = packet.decryptPayload(secretFernet)[0]
+            agentSecret = packet.getPayload()[0]
+            connectionState['state'] = 'finalizing'
+            
 
-        p = Packet(self.user,agentSecret,'finalizeAuth')
-        self.socket.sendall(p.pack(self.fernet))
-
+            p = Packet(self.user,agentSecret,'finalizeAuth')
+            self.socket.sendall(p.pack(self.fernet))
+        else:
+            print("Invalid Request Auth Received\nTrying to loggin again...")
+            self.sendRequestAuth()
         
     def waitForMessage(self,messageToSend):
         message = self.socket.recv(1024)
         packet = Packet()
         packet.decode(message)
+
+
         if packet.getType() == 'response':
+            packet.setPayload(packet.decryptPayload(self.fernet), decode=True)
             # Caso a resposta tenha ";", vai dividir por várias partes
             # juntar essas partes
-            originmessage = ""
-            for i in packet.decryptPayload(self.fernet):
-                originmessage += i.decode('latin-1') + ";"
+            
+            if debug:
+                print("CHECKSUM:")
+                print(packet.getHash(self.fernet))
+                print(packet.calculateHash())
+                print("\n")
+            if packet.getHash(self.fernet) == packet.calculateHash():
+                print(";".join(packet.getPayload()))
+            else:
+                print("Invalid Message")
+            #for i in packet.decryptPayload(self.fernet):
+            #    originmessage += i.decode('latin-1') + ";"
 
-            print(originmessage[:-1])
         elif packet.getType() == 'requestAuth':
             self.handleRequestAuth(packet)
             self.waitForMessage(messageToSend)
 
         elif packet.getType() == 'successAuth':
-            print('success auth')
-            connectionState['state'] = 'authenticated'
-            
-            self.socket.sendall(messageToSend)
-            print("sended")
-            print(messageToSend)
-            self.waitForMessage(messageToSend)
+            packet.setPayload(packet.decryptPayload(self.fernet), decode=False)
+            if packet.getHash(self.fernet) == packet.calculateHash():
+                
+                
+                if connectionState['secret'] == packet.getPayload()[0]:
+                    print("Server authenticated!")
+                    
+                    
+                    print('success auth')
+                    connectionState['state'] = 'authenticated'
+                    
+                    self.socket.sendall(messageToSend)
+
+                    if debug:
+                        print("sended")
+                        print(messageToSend)
+                    self.waitForMessage(messageToSend)
+                else:
+                    print("Unauthenticated Server")
+            else:
+                print("SuccessAuth Invalid")
         elif packet.getType() == 'expiredAuth':
             connectionState['state'] = 'deauthenticated'
             self.sendRequestAuth()
@@ -114,7 +150,7 @@ class Manager:
         #oids = ['.3.3.3','1']
         #oids = ['.1.3.6.1.2.1.1.1.0']
 
-        msg = Packet('test',oids,'SET')
+        msg = Packet(self.user,oids,'SET')
         pack = msg.pack(self.fernet)
         #print(pack)
         if connectionState['state'] != 'authenticated':
@@ -138,8 +174,8 @@ class Manager:
             elif a:=re.search(r'^(get) ((\.\d+)+)$',r): # importantes: 2:
                     #print(a.group(2))
                     print(f"sending get request with oid {a.group(2)} to mib")
-                    self.request(['.1.1.1',a.group(2)])
-
+                    #self.request(['.1.1.1',a.group(2)])
+                    self.request(['.1.1.1','.1.3.6.1.2.1.1.1.0'])
             elif a:=re.search(r'^(getnext) ((\.\d+)+)$',r): # importantes: 1 3 4
                 print(f"sending getnext request with id {a.group(2)} to mib")
                 self.request(['.2.2.2',a.group(2)])

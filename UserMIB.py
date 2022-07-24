@@ -12,13 +12,14 @@ class UserMIB:
         self.mib = {}
         self.lock = Lock()
 
-    def add(self,address, state, ttl, secret=None):
+    def add(self,address, state, ttl, secret=None, secretReceived = None):
         self.lock.acquire()
         try:
             self.mib[address] = {
                     'state':state, # authenticated, expired, authenticating, invalid
                     'ttl': ttl, # ttl em segundos da conexão
-                    'secret':secret
+                    'secret':secret,
+                    'secretReceived':secretReceived
                 }
         finally:
             self.lock.release()
@@ -67,7 +68,16 @@ class UserMIB:
         finally:
             self.lock.release()
 
-    
+    def getSecretReceived(self,address):
+        self.lock.acquire()
+        try:
+            if address in self.mib:
+                return self.mib[address]['secretReceived']
+            else:
+                return None
+        finally:
+            self.lock.release()
+
 
     def getSecret(self,address):
         self.lock.acquire()

@@ -53,23 +53,23 @@ class Packet:
                         toHash += p.encode('latin-1')+divisao
                         encoded += (fernet.encrypt(p.encode('latin-1'))+divisao)
                 h = doHash(toHash[:-1])
-                print(toHash[:-1])
-                print("Hash Here 1:")
-                print(h)
+                # print(toHash[:-1])
+                # print("Hash Here 1:")
+                # print(h)
                 # encoded já vem com o ";"
                 return header+"$".encode('latin-1') + fernet.encrypt(h) +"|".encode('latin-1')+encoded[:-1]
             else:
                 # Se lista for vazia, então envia apenas a hash como payload
                 toHash = header+"|".encode('latin-1')
                 h = doHash(toHash)
-                print("Hash Here 2:")
-                print(h)
+                # print("Hash Here 2:")
+                # print(h)
                 return header+"$".encode('latin-1') + fernet.encrypt(h) + "|".encode('latin-1')
         else:
             toHash = header+"|".encode("latin-1")+self.payload.encode('latin-1')
             h = doHash(toHash)
-            print("Hash Here 3:")
-            print(h)
+            # print("Hash Here 3:")
+            # print(h)
             return header+"$".encode('latin-1') + fernet.encrypt(h) +"|".encode("latin-1")+fernet.encrypt(self.payload.encode('latin-1'))
 
 
