@@ -1,0 +1,98 @@
+mibSec OBJECT-TYPE
+    SYNTAX       SEQUENCE OF RowEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION  "Tabela principal onde estão inseridos os dados de requests feitos por um utilizador e suas respetivas respostas"
+    ::= { experimental 1 }
+
+rowEntry OBJECT-TYPE
+    SYNTAX          RowEntry
+    MAX-ACCESS      not-accessible
+    STATUS          current
+    DESCRIPTION     "Entrada onde estará toda a informação sobre um request, e sua respetiva resposta, composta por colunas como : idOper,typeOper,idSource,idDestination,oidArg,valueArg,typeArg,sizeArg."
+    INDEX        { idOper }
+    ::= { mibSec 1 }
+
+RowEntry ::= 
+    SEQUENCE {
+        idOper          INTEGER,
+        typeOper        INTEGER,
+        idSource        OCTET STRING,
+        idDestination   OCTET STRING,
+        oidArg          OBJECT IDENTIFIER,
+        valueArg        OPAQUE,
+        typeArg         INTEGER,
+        sizeArg         INTEGER,
+        ttlOper         INTEGER,
+        status          OCTET STRING
+    }
+
+idOper OBJECT-TYPE
+    SYNTAX          INTEGER
+    MAX-ACCESS      read-write
+    STATUS          current
+    DESCRIPTION     "Coluna que indica o identificador da operação recebida pelo agente proxy."
+    ::= {rowEntry 1}
+
+typeOper OBJECT-TYPE
+    SYNTAX          INTEGER
+    MAX-ACCESS      read-write
+    STATUS          current
+    DESCRIPTION     "Coluna que indica o tipo de operação SNMP correspondendo ao request; O valor '1' corresponde a um 'get' e o valor '2' corresponde a um 'getnext'."
+    ::= {rowEntry 2}
+
+idSource OBJECT-TYPE
+    SYNTAX          OCTET STRING
+    MAX-ACCESS      read-write
+    STATUS          current
+    DESCRIPTION     "Coluna que identifica a fonte do pedido."
+    ::= {rowEntry 3}
+
+idDestination OBJECT-TYPE
+    SYNTAX          OCTET STRING
+    MAX-ACCESS      read-only
+    STATUS          current
+    DESCRIPTION     "Coluna que identifica o agente SNMPv2c."
+    ::= {rowEntry 4}
+
+oidArg OBJECT-TYPE
+    SYNTAX          OBJECT IDENTIFIER
+    MAX-ACCESS      read-write
+    STATUS          current
+    DESCRIPTION     "Coluna que identifica o OID do objeto da MIB que é argumento da operação a ser executada no agente SNMPv2c remoto."
+    ::= {rowEntry 5}
+
+valueArg OBJECT-TYPE
+    SYNTAX          OPAQUE
+    MAX-ACCESS      read-only
+    STATUS          current
+    DESCRIPTION     "Coluna que identifica o valor do objeto referido por oidArg que é o resultado recebido no agente proxy vindo do agente SNMPv2c remoto."
+    ::= {rowEntry 6}
+
+typeArg OBJECT-TYPE
+    SYNTAX          INTEGER
+    MAX-ACCESS      read-only
+    STATUS          current
+    DESCRIPTION     "Coluna que indica o tipo de dados do valueArg; O valor '1' corresponde a um 'INTEGER', o valor '2' corresponde a um 'OCTET STRING', o valor '3' corresponde a um 'OBJECT IDENTIFIER'."
+    ::= {rowEntry 7}
+
+sizeArg OBJECT-TYPE
+    SYNTAX          INTEGER
+    MAX-ACCESS      read-only
+    STATUS          current
+    DESCRIPTION     "Coluna que indica o tamanho em bytes do valueArg; enquanto não é recebida a resposta do agente SNMPv2c remoto, este valor deverá ser igual a 0."
+    ::= {rowEntry 8}
+
+ttlOper OBJECT-TYPE
+    SYNTAX          INTEGER
+    MAX-ACCESS      read-only
+    STATUS          current
+    DESCRIPTION     "Coluna que indica o tempo durante o qual a linha é válida"
+    ::= {rowEntry 9}
+
+status OBJECT-TYPE
+    SYNTAX          OCTET STRING
+    MAX-ACCESS      read-write
+    STATUS          current
+    DESCRIPTION     "Coluna que indica o estado da linha (received|ready|invalid|deleted)"
+    ::= {rowEntry 10}

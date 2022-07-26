@@ -1,5 +1,3 @@
-from ast import arg
-from base64 import decode
 import socket, threading
 import json
 from cryptography.fernet import Fernet
@@ -8,10 +6,7 @@ from pysnmp.hlapi import *
 from pysnmp.smi.rfc1902 import *
 from MIBsec import MIBsec
 from UserMIB import UserMIB
-from concurrent.futures import ThreadPoolExecutor
-#from Crypter import *
 import time
-import secrets
 
 
 class Cleaner:
@@ -27,9 +22,6 @@ class Cleaner:
             self.users.cleanUp(t,threshold,delThreshold)
         #executor.submit(self.run,t,threshold,delThreshold)
 
-#executor = ThreadPoolExecutor(max_workers=1)
-
-#key = bytes(keys["key"],'latin-1')
 
 
 def getNext(oid):
@@ -61,12 +53,6 @@ def get(oid):
                     CommunityData('gsr2022'),
                     UdpTransportTarget(('localhost', 161)),
                     ContextData(),
-                    #ObjectType(ObjectIdentity('sysDescr.0'))
-                    #ObjectType(ObjectIdentity('UCD-SNMP-MIB','memMinimumSwap',0))#,
-                    #ObjectType(ObjectIdentity('SNMPv2-MIB','sysDescr',0))#,
-                    #ObjectType(ObjectIdentity('1.3.6.1.2.1.1.6.0'))
-                    #ObjectType(ObjectIdentity('1.3.6.1.2.1.1'))
-                    #ObjectType(ObjectIdentity('.1.3.6.1.2.1.1.1.0'))
                     #.1.3.6.1.2.1.1.1.0
                     ObjectType(ObjectIdentity(oid))
                     )
@@ -86,17 +72,6 @@ def get(oid):
         #     print(' = '.join([x.prettyPrint() for x in varBind]))
         return varBinds[0][1].prettyPrint()
 
-def packetValidation(packet):
-    if packet.getType() == 'SET':
-        if len(packet.getPayload()) != 3:
-            print('pacote inválido : %d' % len(packet.getPayload()))
-            return False
-        if packet.getPayload()[0] not in ['.1.1.1','.2.2.2','.3.3.3']:
-            print('pacote inválido2 : ' + packet.getPayload()[0])
-            return False
-    else:
-        print("type : " + packet.getType())
-    return True
 
 class ClientHandler():
     def __init__(self,conn,address,mib,users):
